@@ -3,20 +3,23 @@ module Helpers exposing (..)
 import ParseInt exposing (toRadix')
 import Date exposing (..)
 import String exposing (..)
+import List exposing (..)
+
+
+
+(.::.) =
+  flip (::)
+
 
 getMs : Float -> Int
 getMs n =
   let
-    d =
-      fromTime n
-    h =
-      hour d * (60 * 60 * 1000)
-    m =
-      minute d * (60 * 1000)
-    s =
-      second d * 1000
-    ms =
-      Date.millisecond d
+    f = foldl (*) 0
+    d = fromTime n
+    h  = f <| (.::.) [ 60 60 1000 ] <| hour d
+    m  = f <| (.::.) [    60 1000 ] <| minute d
+    s  = f <| (.::.) [       1000 ] <| second d
+    ms = Date.millisecond d
   in
     (h + m + s + ms)
 

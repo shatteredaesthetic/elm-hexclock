@@ -44,8 +44,8 @@ analogCellStyle =
 buttonStyle : List Attr
 buttonStyle =
   [ "border-radius" => "50%"
-  , "width"         => "85%"
-  , "height"        => "85%"
+  , "width"         => "80%"
+  , "height"        => "80%"
   ]
 
 
