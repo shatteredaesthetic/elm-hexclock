@@ -1,31 +1,34 @@
 module Main exposing (..)
 
-import String exposing (..)
-import List exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, style)
 import Html.App as App
 import Time exposing (Time)
+import Date exposing (fromTime, hour, minute, second)
+import List
+import String
 import List.Split exposing (chunksOfLeft)
+import ParseInt exposing (toRadix')
 import Styles exposing (..)
-import Helpers exposing (..)
 
 
+main : Program Never
 main =
     App.program
         { init = init
         , view = view
         , update = update
-        , subscriptions = subscriptions
+        , subscriptions = subs
         }
 
 
-
--- MODEL
+subs : Model -> Sub Msg
+subs model =
+    Time.every (1318 * Time.millisecond) Tick
 
 
 type alias Model =
-    Time
+    Int
 
 
 init : ( Model, Cmd Msg )
@@ -33,100 +36,71 @@ init =
     ( 0, Cmd.none )
 
 
-
--- UPDATE
-
-
 type Msg
     = Tick Time
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
-update action model =
-    case action of
+update msg model =
+    case msg of
         Tick newTime ->
-            ( newTime, Cmd.none )
-
-
-
--- SUBSCRIPTIONS
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Time.every (1318 * Time.millisecond) Tick
-
-
-
--- VIEW
+            let
+                curr =
+                    getMs newTime
+                        |> fidiv 1318
+            in
+                ( curr, Cmd.none )
 
 
 view : Model -> Html Msg
 view model =
     let
-        curr =
-            fidiv 1318 <| getMs model
-
-        style' =
-            List.concat [ flexStyle, centerStyle, containerStyle ]
+        body =
+            if model == 0 then
+                [ h1 [ styleList [] ] [ text "Loading..." ]
+                , h3 [] [ text "Your time will be available shortly" ]
+                ]
+            else
+                [ digitalView model
+                , analogView model
+                ]
     in
-        div
-            [ class "container"
-            , style style'
-            ]
-            [ digitalView curr
-            , analogView curr
-            ]
-
-
-
--- DIGITAL
+        body
+            |> div
+                [ class "container"
+                , styleList [ flexStyle, centerStyle, containerStyle ]
+                ]
 
 
 digitalView : Int -> Html Msg
 digitalView t =
-    let
-        curr =
-            timeList 16 t
-
-        style' =
-            List.concat [ flexStyle, digitalClockStyle ]
-
-        clock =
-            List.map digitalCellView curr
-    in
-        div [ style style' ] <| clock
+    timeList 16 t
+        |> List.map digitalCellView
+        |> div
+            [ class "digtal-clock"
+            , styleList [ flexStyle, digitalClockStyle ]
+            ]
 
 
 digitalCellView : String -> Html Msg
 digitalCellView ch =
     div
         [ class "digital-cell"
-        , style <| List.concat [ flexStyle, centerStyle, digitalCellStyle ]
+        , styleList [ flexStyle, centerStyle, digitalCellStyle ]
         ]
-        [ div [ style digitalInnerStyle ] [ text ch ]
-        ]
-
-
-
--- ANALOG
+        [ div [ style digitalInnerStyle ] [ text ch ] ]
 
 
 analogView : Int -> Html Msg
 analogView t =
-    let
-        curr =
-            timeList 2 t
-
-        clock =
-            List.map analogRowView <|
-                chunksOfLeft 4 <|
-                    List.map analogCellView curr
-
-        style' =
-            List.concat [ flexStyle, analogClockStyle ]
-    in
-        div [ style style' ] <| clock
+    timeList 2 t
+        |> List.map analogCellView
+        |> chunksOfLeft 4
+        |> List.map analogRowView
+        |> div
+            [ class "analog-clock"
+            , styleList [ flexStyle, analogClockStyle ]
+            ]
 
 
 analogCellView : String -> Html Msg
@@ -137,29 +111,68 @@ analogCellView ch =
                 cellOnStyle
             else
                 cellOffStyle
-
-        cStyle =
-            List.concat [ flexStyle, centerStyle, analogCellStyle ]
-
-        bStyle =
-            List.concat [ flexStyle, buttonStyle, cellState ]
     in
         div
             [ class "analog-cell"
-            , style cStyle
+            , styleList [ flexStyle, centerStyle, analogCellStyle ]
             ]
-            [ div [ style bStyle ] [] ]
+            [ div [ styleList [ flexStyle, buttonStyle, cellState ] ] [] ]
 
 
 analogRowView : List (Html Msg) -> Html Msg
 analogRowView xs =
-    let
-        style' =
-            List.concat [ flexStyle, analogRowStyle ]
-    in
-        div
+    xs
+        |> div
             [ class "analog-row"
-            , style style'
+            , styleList [ flexStyle, analogRowStyle ]
             ]
-        <|
-            xs
+
+
+styleList : List (List Attr) -> Attribute Msg
+styleList lists =
+    style <| List.concat lists
+
+
+fidiv : Int -> Int -> Int
+fidiv =
+    flip (//)
+
+
+timeList : Int -> Int -> List String
+timeList r n =
+    String.split "" <| toRadix' r n
+
+
+(.::.) : List a -> a -> List a
+(.::.) =
+    flip (::)
+
+
+getMs : Float -> Int
+getMs n =
+    let
+        f =
+            List.foldl (*) 1
+
+        d =
+            fromTime n
+
+        h =
+            hour d
+                |> (.::.) [ 60, 60, 1000 ]
+                |> f
+
+        m =
+            minute d
+                |> (.::.) [ 60, 1000 ]
+                |> f
+
+        s =
+            second d
+                |> (.::.) [ 1000 ]
+                |> f
+
+        ms =
+            Date.millisecond d
+    in
+        (h + m + s + ms)
